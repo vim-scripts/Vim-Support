@@ -4,9 +4,11 @@
 
 SetMacro( 'AUTHOR',      'YOUR NAME' )
 SetMacro( 'AUTHORREF',   '' )
+SetMacro( 'COMPANY',     '' )
+SetMacro( 'COPYRIGHT',   '' )
 SetMacro( 'EMAIL',       '' )
+SetMacro( 'LICENSE',     '' )
 SetMacro( 'ORGANIZATION','' )
-SetMacro( 'COPYRIGHT',   'Copyright (c) |YEAR|, |AUTHOR|' )
 
 SetFormat( 'DATE', '%x' )
 SetFormat( 'TIME', '%H:%M' )
