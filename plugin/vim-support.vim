@@ -35,7 +35,7 @@ if exists("g:VimSupportVersion") || &cp
  finish
 endif
 "
-let g:VimSupportVersion= "2.2"                  " version number of this script; do not change
+let g:VimSupportVersion= "2.3"                  " version number of this script; do not change
 "
 "===  FUNCTION  ================================================================
 "          NAME:  GetGlobalSetting     {{{1
@@ -68,13 +68,13 @@ let s:MSWIN =   has("win16") || has("win32") || has("win64") || has("win95")
 "
 let s:installation						= '*undefined*'
 let s:Vim_GlobalTemplateFile	= ''
-let s:Vim_GlobalTemplateDir		= ''
 let s:Vim_LocalTemplateFile		= ''
-let s:Vim_LocalTemplateDir		= ''
 let s:Vim_FilenameEscChar 		= ''
 
 if	s:MSWIN
   " ==========  MS Windows  ======================================================
+	"
+	let s:plugin_dir = substitute( expand('<sfile>:p:h:h'), '\', '/', 'g' )
 	"
 	" change '\' to '/' to avoid interpretation as escape character
 	if match(	substitute( expand("<sfile>"), '\', '/', 'g' ), 
@@ -82,18 +82,13 @@ if	s:MSWIN
 		"
 		" USER INSTALLATION ASSUMED
 		let s:installation					= 'local'
-		let s:plugin_dir  					= substitute( expand('<sfile>:p:h:h'), '\', '/', 'g' )
 		let s:Vim_LocalTemplateFile	= s:plugin_dir.'/vim-support/templates/Templates'
-		let s:Vim_LocalTemplateDir	= fnamemodify( s:Vim_LocalTemplateFile, ":p:h" ).'/'
 	else
 		"
 		" SYSTEM WIDE INSTALLATION
 		let s:installation					= 'system'
-		let s:plugin_dir						= $VIM.'/vimfiles'
-		let s:Vim_GlobalTemplateDir	= s:plugin_dir.'/vim-support/templates'
-		let s:Vim_GlobalTemplateFile= s:Vim_GlobalTemplateDir.'/Templates'
+		let s:Vim_GlobalTemplateFile= s:plugin_dir.'/vim-support/templates/Templates'
 		let s:Vim_LocalTemplateFile	= $HOME.'/vimfiles/vim-support/templates/Templates'
-		let s:Vim_LocalTemplateDir	= fnamemodify( s:Vim_LocalTemplateFile, ":p:h" ).'/'
 	endif
 	"
   let s:Vim_FilenameEscChar 		= ''
@@ -102,22 +97,19 @@ if	s:MSWIN
 else
   " ==========  Linux/Unix  ======================================================
 	"
+	let s:plugin_dir = expand('<sfile>:p:h:h')
+	"
 	if match( expand("<sfile>"), resolve( expand("$HOME") ) ) == 0
 		"
 		" USER INSTALLATION ASSUMED
 		let s:installation					= 'local'
-		let s:plugin_dir 						= expand('<sfile>:p:h:h')
 		let s:Vim_LocalTemplateFile	= s:plugin_dir.'/vim-support/templates/Templates'
-		let s:Vim_LocalTemplateDir	= fnamemodify( s:Vim_LocalTemplateFile, ":p:h" ).'/'
 	else
 		"
 		" SYSTEM WIDE INSTALLATION
 		let s:installation					= 'system'
-		let s:plugin_dir						= $VIM.'/vimfiles'
-		let s:Vim_GlobalTemplateDir	= s:plugin_dir.'/vim-support/templates'
-		let s:Vim_GlobalTemplateFile= s:Vim_GlobalTemplateDir.'/Templates'
+		let s:Vim_GlobalTemplateFile= s:plugin_dir.'/vim-support/templates/Templates'
 		let s:Vim_LocalTemplateFile	= $HOME.'/.vim/vim-support/templates/Templates'
-		let s:Vim_LocalTemplateDir	= fnamemodify( s:Vim_LocalTemplateFile, ":p:h" ).'/'
 	endif
 	"
   let s:Vim_FilenameEscChar 		= ' \%#[]'
@@ -352,7 +344,7 @@ function! Vim_EndOfLineComment ( ) range
 		exe 'normal!	A'.s:VimStartComment.' '
 		startinsert!
 		if line > a:firstline
-			normal k
+			normal! k
 		endif
 	endfor
 endfunction		" ---------- end of function  Vim_EndOfLineComment  ----------
@@ -384,24 +376,24 @@ function! Vim_MultiLineEndComments ( )
 		exe ":".linenumber
 		if getline(linenumber) !~ '^\s*$'
 			let diff	= maxlength - virtcol("$")
-			exe 'normal	'.diff.'A '
+			exe 'normal!	'.diff.'A '
 			exe 'normal!	A'.s:VimStartComment.' '
 		endif
 	endfor
 	"
 	" ----- back to the begin of the marked block -----
 	stopinsert
-	normal '<$
+	normal! '<$
 	if match( getline("."), '\/\/\s*$' ) < 0
 		if search( '\/\*', 'bcW', line(".") ) > 1
-			normal l
+			normal! l
 		endif
 		let save_cursor = getpos(".")
 		if getline(".")[save_cursor[2]+1] == ' '
-			normal l
+			normal! l
 		endif
 	else
-		normal $
+		normal! $
 	endif
 endfunction		" ---------- end of function  Vim_MultiLineEndComments  ----------
 "
@@ -414,7 +406,7 @@ endfunction		" ---------- end of function  Vim_MultiLineEndComments  ----------
 function! Vim_CodeComment() range
 	" add '" ' at the beginning of the lines
 	for line in range( a:firstline, a:lastline )
-		exe line.'s/^/" /'
+		exe line.'s/^/"/'
 	endfor
 endfunction    " ----------  end of function Vim_CodeComment  ----------
 "
@@ -426,12 +418,17 @@ endfunction    " ----------  end of function Vim_CodeComment  ----------
 "===============================================================================
 function! Vim_CommentCode( toggle ) range
 	for i in range( a:firstline, a:lastline )
-		if getline( i ) =~ '^" '
+		" :TRICKY:15.08.2014 17:17:WM:
+		" Older version prior to 2.3 inserted a space after the quote when turning
+		" a line into a comment. In order to deal with old code commented with this
+		" feature, we use a special rule to delete "hidden" spaces before tabs.
+		" Every other space which was inserted after a quote will be visible.
+		if getline( i ) =~ '^" \t'
 			silent exe i.'s/^" //'
 		elseif getline( i ) =~ '^"'
 			silent exe i.'s/^"//'
 		elseif a:toggle
-			silent exe i.'s/^/" /'
+			silent exe i.'s/^/"/'
 		endif
 	endfor
 	"
@@ -556,7 +553,7 @@ endfunction    " ----------  end of function Vim_HelpVimSupport ----------
 "    PARAMETERS:  -
 "       RETURNS:  
 "===============================================================================
-function! g:Vim_RereadTemplates ( displaymsg )
+function! Vim_RereadTemplates ( displaymsg )
 	"
 	"
 	"-------------------------------------------------------------------------------
@@ -597,20 +594,22 @@ function! g:Vim_RereadTemplates ( displaymsg )
 		"-------------------------------------------------------------------------------
 		" handle local template files
 		"-------------------------------------------------------------------------------
-		if finddir( s:Vim_LocalTemplateDir ) == ''
+		let templ_dir = fnamemodify( s:Vim_LocalTemplateFile, ":p:h" ).'/'
+		"
+		if finddir( templ_dir ) == ''
 			" try to create a local template directory
 			if exists("*mkdir")
 				try 
-					call mkdir( s:Vim_LocalTemplateDir, "p" )
+					call mkdir( templ_dir, "p" )
 				catch /.*/
 				endtry
 			endif
 		endif
 
-		if isdirectory( s:Vim_LocalTemplateDir ) && !filereadable( s:Vim_LocalTemplateFile )
+		if isdirectory( templ_dir ) && !filereadable( s:Vim_LocalTemplateFile )
 			" write a default local template file
 			let template	= [	]
-			let sample_template_file	= fnamemodify( s:Vim_GlobalTemplateDir, ':h' ).'/rc/sample_template_file'
+			let sample_template_file	= s:plugin_dir.'/vim-support/rc/sample_template_file'
 			if filereadable( sample_template_file )
 				for line in readfile( sample_template_file )
 					call add( template, line )
@@ -664,8 +663,8 @@ function! s:InitMenus()
 	" get the mapleader (correctly escaped)
 	let [ esc_mapl, err ] = mmtemplates#core#Resource ( g:Vim_Templates, 'escaped_mapleader' )
 	"
-	exe 'amenu '.s:Vim_RootMenu.'.Vim  <Nop>'
-	exe 'amenu '.s:Vim_RootMenu.'.-Sep00- <Nop>'
+	exe 'anoremenu '.s:Vim_RootMenu.'.Vim  <Nop>'
+	exe 'anoremenu '.s:Vim_RootMenu.'.-Sep00- <Nop>'
 	"
 	" Comments
 	"
@@ -715,14 +714,14 @@ function! s:InitMenus()
 	"
 	if !empty(s:Vim_CodeSnippets)
 		"
-		exe "amenu  <silent> ".s:Vim_RootMenu.'.S&nippets.&read\ code\ snippet<Tab>'.esc_mapl.'nr       :call Vim_CodeSnippet("r")<CR>'
-		exe "imenu  <silent> ".s:Vim_RootMenu.'.S&nippets.&read\ code\ snippet<Tab>'.esc_mapl.'nr  <C-C>:call Vim_CodeSnippet("r")<CR>'
-		exe "amenu  <silent> ".s:Vim_RootMenu.'.S&nippets.&write\ code\ snippet<Tab>'.esc_mapl.'nw      :call Vim_CodeSnippet("w")<CR>'
-		exe "vmenu  <silent> ".s:Vim_RootMenu.'.S&nippets.&write\ code\ snippet<Tab>'.esc_mapl.'nw <C-C>:call Vim_CodeSnippet("wv")<CR>'
-		exe "imenu  <silent> ".s:Vim_RootMenu.'.S&nippets.&write\ code\ snippet<Tab>'.esc_mapl.'nw <C-C>:call Vim_CodeSnippet("w")<CR>'
-		exe "amenu  <silent> ".s:Vim_RootMenu.'.S&nippets.&edit\ code\ snippet<Tab>'.esc_mapl.'ne       :call Vim_CodeSnippet("e")<CR>'
-		exe "imenu  <silent> ".s:Vim_RootMenu.'.S&nippets.&edit\ code\ snippet<Tab>'.esc_mapl.'ne  <C-C>:call Vim_CodeSnippet("e")<CR>'
-		exe "amenu  <silent> ".s:Vim_RootMenu.'.S&nippets.-SepSnippets-                       :'
+		exe "anoremenu  <silent> ".s:Vim_RootMenu.'.S&nippets.&read\ code\ snippet<Tab>'.esc_mapl.'nr       :call Vim_CodeSnippet("r")<CR>'
+		exe "inoremenu  <silent> ".s:Vim_RootMenu.'.S&nippets.&read\ code\ snippet<Tab>'.esc_mapl.'nr  <C-C>:call Vim_CodeSnippet("r")<CR>'
+		exe "anoremenu  <silent> ".s:Vim_RootMenu.'.S&nippets.&write\ code\ snippet<Tab>'.esc_mapl.'nw      :call Vim_CodeSnippet("w")<CR>'
+		exe "vnoremenu  <silent> ".s:Vim_RootMenu.'.S&nippets.&write\ code\ snippet<Tab>'.esc_mapl.'nw <C-C>:call Vim_CodeSnippet("wv")<CR>'
+		exe "inoremenu  <silent> ".s:Vim_RootMenu.'.S&nippets.&write\ code\ snippet<Tab>'.esc_mapl.'nw <C-C>:call Vim_CodeSnippet("w")<CR>'
+		exe "anoremenu  <silent> ".s:Vim_RootMenu.'.S&nippets.&edit\ code\ snippet<Tab>'.esc_mapl.'ne       :call Vim_CodeSnippet("e")<CR>'
+		exe "inoremenu  <silent> ".s:Vim_RootMenu.'.S&nippets.&edit\ code\ snippet<Tab>'.esc_mapl.'ne  <C-C>:call Vim_CodeSnippet("e")<CR>'
+		exe "anoremenu  <silent> ".s:Vim_RootMenu.'.S&nippets.-SepSnippets-                       :'
 		"
 	endif
 	"
@@ -732,8 +731,8 @@ function! s:InitMenus()
 	" run
 	"-------------------------------------------------------------------------------
 	" 
-	let ahead = 'amenu <silent> '.s:Vim_RootMenu.'.Run.'
-	let vhead = 'vmenu <silent> '.s:Vim_RootMenu.'.Run.'
+	let ahead = 'anoremenu <silent> '.s:Vim_RootMenu.'.Run.'
+	let vhead = 'vnoremenu <silent> '.s:Vim_RootMenu.'.Run.'
 	"
 	if	s:MSWIN
 		exe ahead.'&hardcopy\ to\ printer<Tab>'.esc_mapl.'rh        <C-C>:call Vim_Hardcopy("n")<CR>'
@@ -749,8 +748,8 @@ function! s:InitMenus()
  	" help
  	"-------------------------------------------------------------------------------
  	"
-	let ahead = 'amenu <silent> '.s:Vim_RootMenu.'.Help.'
-	let ihead = 'imenu <silent> '.s:Vim_RootMenu.'.Help.'
+	let ahead = 'anoremenu <silent> '.s:Vim_RootMenu.'.Help.'
+	let ihead = 'inoremenu <silent> '.s:Vim_RootMenu.'.Help.'
 	"
   exe ahead.'&keyword\ help<Tab>'.esc_mapl.'hk\ \ <S-F1>    :call Vim_Help()<CR>'
 	exe ahead.'-SEP1- :'
@@ -772,7 +771,7 @@ function! Vim_JumpForward ()
 	else
 		" try to jump behind parenthesis or strings 
 		call search( "[\]})\"'`]", 'W' )
-		normal l
+		normal! l
 	endif
 	return ''
 endfunction    " ----------  end of function Vim_JumpForward  ----------
@@ -968,8 +967,8 @@ function! s:CreateAdditionalMaps ()
 		inoremap    <buffer>  <silent>  <S-F1>        <C-C>:call Vim_Help()<CR>
 	endif
 	"
-	nmap    <buffer>  <silent>  <C-j>    i<C-R>=Vim_JumpForward()<CR>
-	imap    <buffer>  <silent>  <C-j>     <C-R>=Vim_JumpForward()<CR>
+	nnoremap    <buffer>  <silent>  <C-j>    i<C-R>=Vim_JumpForward()<CR>
+	inoremap    <buffer>  <silent>  <C-j>     <C-R>=Vim_JumpForward()<CR>
 	"
 	"-------------------------------------------------------------------------------
 	" settings - reset local leader
@@ -993,14 +992,15 @@ endfunction    " ----------  end of function s:CreateAdditionalMaps  ----------
 function! Vim_Settings ()
 	let	txt =     " Vim-Support settings\n\n"
 	let txt = txt.'      plugin installation :  "'.s:installation."\"\n"
+	let txt = txt.'    using template engine :  version '.g:Templates_Version." by Wolfgang Mehner\n"
  	let txt = txt.'   code snippet directory :  "'.s:Vim_CodeSnippets."\"\n"
 	if s:installation == 'system'
-		let txt = txt.'global template directory :  '.s:Vim_GlobalTemplateDir."\n"
+		let txt = txt.'     global template file :  '.s:Vim_GlobalTemplateFile."\n"
 		if filereadable( s:Vim_LocalTemplateFile )
-			let txt = txt.' local template directory :  '.s:Vim_LocalTemplateDir."\n"
+			let txt = txt.'      local template file :  '.s:Vim_LocalTemplateFile."\n"
 		endif
 	else
-		let txt = txt.' local template directory :  '.s:Vim_LocalTemplateDir."\n"
+		let txt = txt.'      local template file :  '.s:Vim_LocalTemplateFile."\n"
 	endif
 	let txt = txt."\n"
 	let	txt = txt."__________________________________________________________________________\n"
@@ -1014,10 +1014,10 @@ endfunction    " ----------  end of function Vim_Settings ----------
 function! Vim_CreateGuiMenus ()
 	if s:Vim_MenuVisible == 'no'
 		aunmenu <silent> &Tools.Load\ Vim\ Support
-		amenu   <silent> 40.1000 &Tools.-SEP100- :
-		amenu   <silent> 40.1170 &Tools.Unload\ Vim\ Support :call Vim_RemoveGuiMenus()<CR>
+		anoremenu   <silent> 40.1000 &Tools.-SEP100- :
+		anoremenu   <silent> 40.1170 &Tools.Unload\ Vim\ Support :call Vim_RemoveGuiMenus()<CR>
 		"
-		call g:Vim_RereadTemplates('no')
+		call Vim_RereadTemplates('no')
 		call s:InitMenus () 
 		"
 		let s:Vim_MenuVisible = 'yes'
@@ -1028,8 +1028,8 @@ endfunction    " ----------  end of function Vim_CreateGuiMenus  ----------
 "  Vim_ToolMenu     {{{1
 "------------------------------------------------------------------------------
 function! Vim_ToolMenu ()
-	amenu   <silent> 40.1000 &Tools.-SEP100- :
-	amenu   <silent> 40.1170 &Tools.Load\ Vim\ Support :call Vim_CreateGuiMenus()<CR>
+	anoremenu   <silent> 40.1000 &Tools.-SEP100- :
+	anoremenu   <silent> 40.1170 &Tools.Load\ Vim\ Support :call Vim_CreateGuiMenus()<CR>
 endfunction    " ----------  end of function Vim_ToolMenu  ----------
 
 "------------------------------------------------------------------------------
@@ -1061,8 +1061,8 @@ if has( 'autocmd' )
   autocmd FileType *
         \ if &filetype == 'vim' || ( &filetype == 'help' && &modifiable == 1 && s:Vim_CreateMapsForHelp == 'yes' ) |
         \   if ! exists( 'g:Vim_Templates' ) |
-        \     if s:Vim_LoadMenus == 'yes' | call Vim_CreateGuiMenus ()        |
-        \     else                        | call g:Vim_RereadTemplates ('no') |
+        \     if s:Vim_LoadMenus == 'yes' | call Vim_CreateGuiMenus ()      |
+        \     else                        | call Vim_RereadTemplates ('no') |
         \     endif |
         \   endif |
         \   call s:CreateAdditionalMaps() |
